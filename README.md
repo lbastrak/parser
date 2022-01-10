@@ -4,7 +4,7 @@
 Parsing it's easy!
 
 
-```
+```php
 
 require_once __DIR__ . '/parser/parser.php';
 
@@ -33,7 +33,7 @@ dd($curl->LAST_COOKIES);
 Multi curl example
 
 
-```
+```php
 
 $mc = new CURL('');
 $channels = [];
