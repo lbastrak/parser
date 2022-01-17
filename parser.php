@@ -2,9 +2,8 @@
 
 /**
  * @version 2.2.0
- * @link https://vk.com/runphp
- * @link https://www.weblancer.net/users/arkady2477
  * @link https://t.me/runphp
+ * @link https://github.com/lbastrak
  * @author Arkady Paramazyan <run.php@mail.ru>
  *
  */

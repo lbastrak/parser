@@ -1,7 +1,6 @@
-# parser
+# Parsing it's easy!
 
-
-Parsing it's easy!
+Easy solution for creating bots and parsers
 
 
 ```php
@@ -12,7 +11,7 @@ $curl = new CURL('www.example.com');
 $curl->proxy = true;
 
 $curl->set_post(http_build_query([
-	"it's easy" => true
+	"parsing" => "it's easy"
 ]));
 
 $html = $curl->exec($close = true, $http_code);
@@ -27,6 +26,10 @@ if($http_code == 200) {
 // Debug response cookies
 
 dd($curl->LAST_COOKIES);
+
+// Debug response headers
+
+dd($curl->LAST_HEADER);
 
 ```
 
