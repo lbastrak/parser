@@ -64,8 +64,9 @@ class Curl {
  	}
 
  	public function set_random_user() {
- 		$languages = ['ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7', 'ru-RU,ru;q=0.9,en-us,en;q=0.5'];
-
+ 		//$languages = ['ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7', 'ru-RU,ru;q=0.9,en-us,en;q=0.5'];
+ 		$languages = ['en-US,en;q=0.9,en-US;q=0.8,en;q=0.7', 'en-US,en;q=0.9,en-us,en;q=0.5'];
+ 		
  		$header[] = "Accept-Language: " . $languages[array_rand($languages)];
  		$header[] = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9";
  		//$header[] = "Accept-Encoding: gzip, deflate, br";
@@ -290,10 +291,12 @@ class Curl {
 		return $mrc;
 	}
 
-	public function multi_content($channel) {
+	public function multi_content($channel, $close = true) {
 		
 		$contnet = curl_multi_getcontent($channel);
 		curl_multi_remove_handle($this->multi, $channel);
+		if($close)
+			curl_close($channel);
 		return $contnet;
 	}
 	//
