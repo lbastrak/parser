@@ -40,7 +40,8 @@ class Curl {
 		curl_setopt($this->ch, CURLOPT_HEADER, true);
 		curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, false);
 		curl_setopt($this->ch, CURLOPT_SSL_VERIFYHOST, false);
-		curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, 30);
+		curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, 0);
+		curl_setopt($this->ch, CURLOPT_TIMEOUT, 30);
 
 		$this->set_random_user();
 
