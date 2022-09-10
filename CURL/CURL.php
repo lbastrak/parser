@@ -14,7 +14,7 @@ class Curl {
 
 	// PROXY SETTINGS
 	const PROXY_RECEVING_LIMIT = 10*60; // 10 mintus
-	public $proxylist_url = 'https://hidemy.name/ru/proxy-list/?__cf_chl_jschl_tk__=358338e812e5404a89ba07580be73cd05c459cfc-1593124805-0-AUb38_swKrDRexdeYg8XeFNP8HQPHx-SBtNAKD1K_TgU57MYLPCb_y3kawRrkPGpSResZy6OavY5rz8xpQnEDb3ElYUq8IQG1VlAQ6NfH_DKn2FpGqKUXTp_AT4WBXk-KVz0zCGu5iTJwgyNLO4kCZxrtd30lGPIydzAUSjZZ8zGrYidVTtEU0osx-__6ty2Rsub-Tv06sNwoPMQKMjU0ajF7yfaKRnytGZZGemnDQNVOhiBVke7kRYbVJHmcAW8ybTTFCGan7l5aMy4w41zOndGAFIv4r8uP0PHJFRfu7pB&type=4';
+	public $proxylist_url = 'https://hidemy.name/ru/proxy-list/';
 	public $proxy = false;
 	public $shuffle_proxy = false;
 
