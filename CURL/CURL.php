@@ -1,19 +1,20 @@
 <?php
 /**
- * @version 2.1.5
+ * @version 4.0
  * @link https://t.me/runphp
  * @link https://github.com/lbastrak
  * @author Arkady Paramazyan <run.php@mail.ru>
- * @package CURL
+ * @package Parser
  */
 
-class Curl {
+class CURL {
 
 	public $ch;
 	public $url;
 
 	// PROXY SETTINGS
-	const PROXY_RECEVING_LIMIT = 10*60; // 10 mintus
+	const PROXY_RECEVING_LIMIT = 10*60; // 10 mints
+	
 	public $proxylist_url = 'https://hidemy.name/ru/proxy-list/';
 	public $proxy = false;
 	public $shuffle_proxy = false;
@@ -25,12 +26,18 @@ class Curl {
 	public $useragent = "";
 	private $user_agents = __DIR__ . '/user_agents.txt';
 	public $reset_cookie = false;
-	public $multi;
-	public $LAST_HEADER = "";
+	public $LAST_HEADERS = [];
 	public $LAST_COOKIES = [];
+
+	//Multicurl
+	public $multi;
+	public $multi_channels = [];
 
 	function __construct( $target_url = '', $use_cookie = true) {
 		
+		if($target_url == '')
+			return true;
+
 		$this->url = $target_url;
 		$this->ch = curl_init();
 		curl_setopt($this->ch, CURLOPT_URL, $this->url);
@@ -41,24 +48,26 @@ class Curl {
 		curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, false);
 		curl_setopt($this->ch, CURLOPT_SSL_VERIFYHOST, false);
 		curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, 0);
-		curl_setopt($this->ch, CURLOPT_TIMEOUT, 30);
+		curl_setopt($this->ch, CURLOPT_TIMEOUT, 29);
 
 		$this->set_random_user();
-
-		//
 		ob_start();
 		debug_print_backtrace();
-		preg_match('/\[(.*):[0-9]+\]/', ob_get_clean(),$matches);
-		$this->_cookieFileLocation = dirname($matches[1]) . '/cookies.txt';
-		//
+		$backtrace = ob_get_clean();
+
+		preg_match('/[^\s]+\.php/', $backtrace, $matches);
+
+		$this->_cookieFileLocation =  dirname($matches[0]) . '/cookies.txt';
+		
 		if($use_cookie) {
 			$this->set_cookie_path($this->_cookieFileLocation);
 		}
  	}
 
  	public function time_limit($time) {
-
- 		curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, $time-3);
+ 		
+ 		if($this->url != '')
+ 			curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, $time-3);
  		ini_set('max_execution_time', $time);
 		set_time_limit($time);
 		return true;
@@ -85,6 +94,8 @@ class Curl {
 		$user_agents = preg_split('/\n/', file_get_contents($this->user_agents));
 		$this->useragent = stripcslashes( trim($user_agents[ array_rand($user_agents) ]) );
 		
+		curl_setopt($this->ch, CURLOPT_REFERER, trim((string) $this->referer));
+		curl_setopt($this->ch, CURLOPT_USERAGENT, (string) $this->useragent);
 		curl_setopt($this->ch, CURLOPT_HTTPHEADER, $header);
  	}
 
@@ -140,15 +151,13 @@ class Curl {
 		return $__proxylist;
  	}
 	
-	public function exec( $close_connect = true, &$http_code = 0, &$proxy_list = [], &$set_get_proxy = "") {
+	public function exec( $close_connect = true, &$info = [], &$proxy_list = [], &$set_get_proxy = "") {
 
 		if($this->reset_cookie)
 			file_put_contents($this->_cookieFileLocation, '');
 
-		curl_setopt($this->ch, CURLOPT_REFERER, trim((string) $this->referer));
-		curl_setopt($this->ch, CURLOPT_USERAGENT, (string) $this->useragent);
 
-		$data = "";
+		$response = "";
 		if($this->proxy) {
 			
 			if($proxy_list == [])
@@ -161,13 +170,13 @@ class Curl {
 			if($set_get_proxy != "") {
 
 				curl_setopt($this->ch, CURLOPT_PROXY, $set_get_proxy);
-				$data = curl_exec($this->ch);
+				$response = curl_exec($this->ch);
 			}else {
 				
 				while ( $proxy = $proxy_list[$i] ) {
 
 					curl_setopt($this->ch, CURLOPT_PROXY, $proxy);
-					if ($data = curl_exec($this->ch) ) {
+					if ($response = curl_exec($this->ch) ) {
 						$set_get_proxy = $proxy;
 						break;
 					}
@@ -177,28 +186,51 @@ class Curl {
 			}
 
 		} else 
-			$data = curl_exec($this->ch);
+			$response = curl_exec($this->ch);
 		
-		$headers  = curl_getinfo($this->ch);
-        $this->LAST_HEADER = substr($data, 0, $headers['header_size']);
-        preg_match_all('/^Set-Cookie:\s*([^;]*)/mi', $this->LAST_HEADER, $matches);
-		foreach($matches[1] as $item) {
-		    parse_str($item, $cookie);
-		    $this->LAST_COOKIES = array_merge($this->LAST_COOKIES, $cookie);
-		}
+		$info  = curl_getinfo($this->ch);
 
+        $processed = self::curl_response_processing($info,$response);
+        $this->LAST_HEADERS = $processed['headers'];
+        $this->LAST_COOKIES = $processed['cookies'];
+        $content = $processed['content'];
 
-        $data = substr($data, $headers['header_size'], strlen($data));
-
-		$http_code = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
 		if($close_connect)
 			curl_close( $this->ch);
 		
-		
-		return $data;
+		return $content;
 	}
 
-	function download_image($save_path, $limitWidth = 4000, $limitHeight = 4000) {
+	private static function curl_response_processing($info, $content) {
+
+		$headers = substr($content, 0, $info['header_size']);
+        $cookies = [];
+
+        // Parse cookies
+        preg_match_all('/^Set-Cookie:\s*([^;]*)/mi', $headers, $matches);
+		foreach($matches[1] as $item) {
+		    parse_str($item, $cookie);
+		    $cookies = array_merge($cookies, $cookie);
+		}
+
+		//Parse headers
+		$headers = [];
+		foreach (preg_split('/(\s+\n+)/', substr($content, 0, $info['header_size'])) as $key => $value) {
+			
+			$value = preg_split('/([:]+)/', $value);
+			if(count($value) != 2) continue;
+			$headers[trim($value[0])]=trim($value[1]);
+		}
+
+		$content = substr($content, $info['header_size'], strlen($content));
+        return [
+        	'headers' => $headers,
+        	'content' => $content,
+        	'cookies' => $cookies
+        ];
+	}
+
+	public function download_image($save_path, $limitWidth = 4000, $limitHeight = 4000) {
 
 		curl_setopt_array($this->ch, [ // Укажем настройки для cURL
 		    CURLOPT_TIMEOUT => 60,// Укажем максимальное время работы cURL
@@ -266,14 +298,22 @@ class Curl {
 
 
 	// Multi
-	public function multi_add($channel) {
 
+	public function multi_add() {
+		
+		$args = func_get_args();
+		$this->multi_channels[] = $args;
+		
 		if(!$this->multi)
 			$this->multi = curl_multi_init();
-		curl_multi_add_handle($this->multi, $channel);
+
+		curl_multi_add_handle($this->multi, $args[0]);
 	}
 
-	public function multi_exec() {
+	public function multi_exec($callback = NULL) {
+
+		if(!count($this->multi_channels))
+			return false;
 
 		$active = null;
 		do {
@@ -289,6 +329,30 @@ class Curl {
 		        $mrc = curl_multi_exec($this->multi, $active);
 		    } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 		}
+
+		if($callback != NULL) {
+
+			foreach ($this->multi_channels as $params) {
+				
+				$response = $this->multi_content($params[0],false);
+				$info = curl_getinfo($params[0]);
+				curl_close($params[0]);
+
+		        $processed = self::curl_response_processing($info,$response);
+		        $headers = $processed['headers'];
+		        $cookies = $processed['cookies'];
+		        $content = $processed['content'];
+
+		        $ch = $params[0];
+		        $params[0] = $content;
+		        $params[] = $info;
+		        $params[] = $cookies;
+		        $params[] = $headers;
+		        $params[] = $ch;
+				call_user_func_array($callback, $params);
+			}
+		}
+
 		return $mrc;
 	}
 
@@ -302,4 +366,3 @@ class Curl {
 	}
 	//
 }
-?>

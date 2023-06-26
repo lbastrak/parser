@@ -5,7 +5,7 @@ Easy solution for creating bots and parsers
 
 ```php
 
-require_once __DIR__ . '/parser/parser.php';
+require_once __DIR__ . '/parser/bootstrap.php';
 
 $curl = new CURL('www.example.com');
 $curl->proxy = true;
@@ -14,9 +14,9 @@ $curl->set_post(http_build_query([
 	"parsing" => "it's easy"
 ]));
 
-$html = $curl->exec($close = true, $http_code);
+$html = $curl->exec($close = true, $curl_info);
 
-if($http_code == 200) {
+if($curl_info['http_code'] == 200) {
 	
 	$doc = phpQuery::newDocumentHTML($html);
 	$doc->find('script,noscript')->remove();
@@ -38,27 +38,35 @@ Multi curl example
 
 ```php
 
-$mc = new CURL('');
-$channels = [];
+$mc = new CURL;
 
-foreach ($url_list as $url) {
+$url_list = [
+	[
+		'url' => 'www.example.com?page=1'
+	],
+	[
+		'url' => 'www.example.com?page=2'
+	],
+];
 
-	$curl = new CURL($url);
+foreach ($url_list as $list_key => $item) {
 
+	$curl = new CURL($item['url']);
 
-	$channels[] = [
-		'ch' => $curl->ch,
-		'url' => $url
-	];
-	$mc->multi_add($curl->ch);
+	$mc->multi_add($curl->ch, $list_key);
 }
 
+$mc->multi_exec(function($content, $list_key, $info, $cookies, $headers) use (&$url_list) {
+	
+	$url_list[$list_key]['http_code'] = $info['http_code'];
+	if($info['http_code'] == 200) {
+		
+		$doc = phpQuery::newDocumentHTML($content);
+		$url_list[$list_key]['title'] = $doc->find('h1')->text();
+	}
+});
 
-$mc->multi_exec();
+dd($url_list); // Debug parsing result
 
-foreach($channels as $ch) {
-
-	$html = $mc->multi_content($ch['ch']);
-}
 
 ```

@@ -12,6 +12,9 @@ class DB
 			$this->db = new PDO("mysql:host=".$host.";charset=$charset;dbname=".$db_name,$db_user,$db_pass);
 			return $this->db;
 		} catch (PDOException $e) {
+			if($e->errorInfo[0] == 'HY000') {
+				echo "Server Error #000";
+			}
 			error_log("PDO Error: ".$e->getMessage() . PHP_EOL);
 			exit;
 		}
